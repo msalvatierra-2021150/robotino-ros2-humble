@@ -6,12 +6,18 @@
  */
 
 
+#include <memory>
+
+#include "rclcpp/rclcpp.hpp"
 #include "RTOOdometryNode.h"
 
-
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
-	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<RTOOdometryNode>());
-	return 0;
+  rclcpp::init(argc, argv);
+
+  auto node = std::make_shared<RTOOdometryNode>();
+  rclcpp::spin(node);
+
+  rclcpp::shutdown();
+  return 0;
 }

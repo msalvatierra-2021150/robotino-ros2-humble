@@ -9,15 +9,22 @@
 
 using namespace std::chrono_literals;
 
-RTOOdometryNode::RTOOdometryNode():
-Node( "rto_odometry_node")
+RTOOdometryNode::RTOOdometryNode()
+: Node("rto_odometry_node"),
+  com_(this),
+  odometry_(this)
 {
-	this->declare_parameter("hostname", "172.26.1.1");
-	hostname_ = this->get_parameter("hostname").as_string();
-	com_.setName( "Odometry" );
+  this->declare_parameter("hostname", "172.26.1.1");
+  hostname_ = this->get_parameter("hostname").as_string();
 
-	initModules();
-	timer_ = this->create_wall_timer(200ms,std::bind(&RTOOdometryNode::spin, this))
+  com_.setName("Odometry");
+
+  initModules();
+
+  timer_ = this->create_wall_timer(
+    200ms,
+    std::bind(&RTOOdometryNode::spin, this)
+  );
 }
 
 RTOOdometryNode::~RTOOdometryNode()
@@ -36,7 +43,7 @@ void RTOOdometryNode::initModules()
 
 void RTOOdometryNode::spin()
 {
-	rclcpp::Time curr_time = rclcpp::Clock().now();
+	rclcpp::Time curr_time = this->now();
 	odometry_.setTimeStamp(curr_time);
 
 	com_.processEvents();

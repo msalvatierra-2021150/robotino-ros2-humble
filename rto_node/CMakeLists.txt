@@ -27,6 +27,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(RobotinoAPI2 REQUIRED)
 find_package(rto_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(
   include/rto_node
@@ -98,6 +99,33 @@ target_link_libraries(
 )
 
 add_executable(
+  rto_odometry_node
+  src/rto_odometry_node.cpp
+  src/ComROS.cpp
+  src/OdometryROS.cpp
+  src/RTOOdometryNode.cpp
+)
+
+ament_target_dependencies(
+  rto_odometry_node
+  rclcpp
+  rto_msgs
+  std_msgs
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  nav_msgs
+  builtin_interfaces
+)
+
+target_link_libraries(
+  rto_odometry_node
+  ${REC_ROBOTINO_API2_LIBRARY}
+)
+
+add_executable(
   rto_camera_node
   src/rto_camera_node.cpp
   src/ComROS.cpp
@@ -132,6 +160,7 @@ install(TARGETS
   rto_node
   rto_camera_node
   rto_laserrangefinder_node
+  rto_odometry_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
