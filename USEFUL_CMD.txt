@@ -9,3 +9,6 @@ ros2 launch rto_bringup rto_bringup_launch.py hostname:=172.27.1.1
 
 Move the robotino:
 timeout 10s ros2 topic pub /rto3/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.05, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" -r 1
+
+Launch obstacle avoidance, RViz, and the URDF/XACRO robot description publisher.
+ros2 launch rto_bringup rto_odom_sensors_rviz.launch.py hostname:=172.27.1.1

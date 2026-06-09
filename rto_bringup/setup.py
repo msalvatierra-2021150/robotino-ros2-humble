@@ -1,6 +1,7 @@
 import os
 from glob import glob
 from setuptools import setup
+
 package_name = 'rto_bringup'
 
 setup(
@@ -11,12 +12,11 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # ... Other data files
-        # Include all launch files.
-        ('share/' + package_name, ['launch/rto_bringup_launch.py']), 
-        ('share/' + package_name, ['launch/rto_rviz_launch.py']),
-        ('share/' + package_name, ['rviz/rto_config.rviz']), 
+
+        # Launch files
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+
+        # RViz files
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools'],
