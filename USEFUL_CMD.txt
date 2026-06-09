@@ -1,0 +1,11 @@
+Source the ROS:
+source /opt/ros/humble/setup.bash
+
+Source the workspace:
+source ~/robotino3/robotino3ros2/install/setup.bash
+
+Connect with the robotino:
+ros2 launch rto_bringup rto_bringup_launch.py hostname:=172.27.1.1
+
+Move the robotino:
+timeout 10s ros2 topic pub /rto3/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.05, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" -r 1

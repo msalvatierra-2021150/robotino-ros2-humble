@@ -16,6 +16,8 @@ setup(
         ('share/' + package_name, ['launch/rto_bringup_launch.py']), 
         ('share/' + package_name, ['launch/rto_rviz_launch.py']),
         ('share/' + package_name, ['rviz/rto_config.rviz']), 
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+        (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
