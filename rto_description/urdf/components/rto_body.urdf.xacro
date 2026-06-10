@@ -17,11 +17,11 @@
                     izz="1.0" />
             </inertial>
             <visual>
-            <origin xyz="0.01 0 0" rpy="0 0 ${M_PI/2}"/>
-            <geometry>
-                <mesh filename="file:///home/mike/robotino3/robotino3ros2/rto_description/meshes/parts/rto_base.dae"
-                    scale="${M_SCALE} ${M_SCALE} ${M_SCALE}"/>
-            </geometry>
+                <origin xyz="0.01 0 0" rpy="0 0 ${M_PI/2}"/>
+                <geometry>
+                    <mesh filename="package://rto_description/meshes/parts/rto_base.dae"
+                        scale="${M_SCALE} ${M_SCALE} ${M_SCALE}"/>
+                </geometry>
             </visual>
             <collision>
                 <origin xyz="0 0 ${BASE_HEIGHT/2}" rpy="0 0 0" />
