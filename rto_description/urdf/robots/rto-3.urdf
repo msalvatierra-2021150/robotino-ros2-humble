@@ -159,7 +159,7 @@
       <robotBaseFrame>base_link</robotBaseFrame>
       <publishTF>true</publishTF>
     </plugin>
-    <plugin filename="libgazebo_ros_control.so" name="gazebo_ros_control"/>
+    <!-- <plugin filename="libgazebo_ros_control.so" name="gazebo_ros_control"/> -->
   </gazebo>
   <link name="plate_link">
     <inertial>

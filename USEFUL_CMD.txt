@@ -12,3 +12,16 @@ timeout 10s ros2 topic pub /rto3/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0
 
 Launch obstacle avoidance, RViz, and the URDF/XACRO robot description publisher.
 ros2 launch rto_bringup rto_odom_sensors_rviz.launch.py hostname:=172.27.1.1
+
+Publish the to /cmd_vel
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \
+"{linear: {x: 0.2}, angular: {z: 0.0}}"
+
+Generate the URDF
+ros2 run xacro xacro rto_description/urdf/robots/rto-3.urdf.xacro > /tmp/rto-3.urdf
+
+Publish the URDF to Gazebo
+ros2 run gazebo_ros spawn_entity.py -entity robotino -file /tmp/rto-3.urdf
+
+Launch gazebo
+ros2 launch gazebo_ros gazebo.launch.py
