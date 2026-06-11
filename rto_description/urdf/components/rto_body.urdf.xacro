@@ -55,15 +55,20 @@
         </xacro:anglebracketusb> -->
         <!-- gazebo control -->
         <gazebo>
-            <plugin name="object_controller" filename="libgazebo_ros_planar_move.so">
-                <commandTopic>cmd_vel</commandTopic>
-                <odometryTopic>odom</odometryTopic>
-                <odometryFrame>odom</odometryFrame>
-                <odometryRate>20</odometryRate>
-                <robotBaseFrame>base_link</robotBaseFrame>
-                <publishTF>true</publishTF>
+            <plugin
+                filename="libignition-gazebo6-velocity-control-system.so"
+                name="ignition::gazebo::systems::VelocityControl">
+                <topic>/cmd_vel</topic>
             </plugin>
-            <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so"/>
+
+            <plugin
+                filename="libignition-gazebo6-odometry-publisher-system.so"
+                name="ignition::gazebo::systems::OdometryPublisher">
+                <odom_frame>odom</odom_frame>
+                <robot_base_frame>base_link</robot_base_frame>
+                <odom_topic>/odom</odom_topic>
+                <dimensions>2</dimensions>
+            </plugin>
         </gazebo>
     </xacro:macro>
 </robot>

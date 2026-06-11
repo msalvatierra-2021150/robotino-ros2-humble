@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'robotino_experiments'
+package_name = 'robotino_controller'
 
 setup(
     name=package_name,
@@ -24,7 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'obstacle_stop = robotino_experiments.obstacle_stop:main',
+            'obstacle_stop = controller.obstacle_stop:main',
+            'controller_pf = controller.controller_pf:main',
         ],
     },
 )

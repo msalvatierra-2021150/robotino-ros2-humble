@@ -63,7 +63,7 @@ def generate_launch_description():
         ),
 
         Node(
-            package="robotino_experiments",
+            package="robotino_controller",
             executable="obstacle_stop",
             name="obstacle_stop",
             output="screen"

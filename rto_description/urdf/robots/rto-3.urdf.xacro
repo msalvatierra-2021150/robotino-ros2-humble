@@ -10,7 +10,19 @@
   <!-- <xacro:bracket parent="base_link" name="bracket_camera" scale="0.000666666667">
     <origin xyz="0.084 0 0.271" rpy="0 3.14 1.57"/>
   </xacro:bracket>-->
-<xacro:simple_lidar name="lidar" parent="base_link">
-  <origin xyz="0.0 0.0 0.21" rpy="0 0 0"/>
-</xacro:simple_lidar>
+  <xacro:simple_lidar name="lidar" parent="base_link">
+    <origin xyz="0.0 0.0 0.21" rpy="0 0 0"/>
+  </xacro:simple_lidar>
+  <gazebo>
+    <plugin
+      filename="ignition-gazebo-odometry-publisher-system"
+      name="ignition::gazebo::systems::OdometryPublisher">
+
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_topic>/odom</odom_topic>
+      <dimensions>2</dimensions>
+    </plugin>
+  </gazebo>
 </robot>

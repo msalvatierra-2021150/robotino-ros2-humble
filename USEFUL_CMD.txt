@@ -24,4 +24,4 @@ Publish the URDF to Gazebo
 ros2 run gazebo_ros spawn_entity.py -entity robotino -file /tmp/rto-3.urdf
 
 Launch gazebo
-ros2 launch gazebo_ros gazebo.launch.py
+ros2 launch rto_simulation gazebo_model.launch.py

@@ -79,8 +79,19 @@ def generate_launch_description():
             "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
             "/lidar_scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
             "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
+            "/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry",
         ],
         output="screen"
+    )
+
+    controller_node = Node(
+        package="robotino_controller",
+        executable="controller_pf",
+        name="controller_pf",
+        output="screen",
+        parameters=[
+            {"use_sim_time": True}
+        ]
     )
 
     return LaunchDescription([
@@ -91,5 +102,11 @@ def generate_launch_description():
             period=3.0,
             actions=[spawn_robot]
         ),
+
         bridge,
+
+        TimerAction(
+            period=5.0,
+            actions=[controller_node]
+        ),
     ])
