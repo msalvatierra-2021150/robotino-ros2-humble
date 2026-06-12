@@ -84,16 +84,6 @@ def generate_launch_description():
         output="screen"
     )
 
-    controller_node = Node(
-        package="robotino_controller",
-        executable="controller_pf",
-        name="controller_pf",
-        output="screen",
-        parameters=[
-            {"use_sim_time": True}
-        ]
-    )
-
     return LaunchDescription([
         gazebo,
         robot_state_publisher,
@@ -103,10 +93,5 @@ def generate_launch_description():
             actions=[spawn_robot]
         ),
 
-        bridge,
-
-        TimerAction(
-            period=5.0,
-            actions=[controller_node]
-        ),
+        bridge
     ])

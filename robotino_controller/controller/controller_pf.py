@@ -154,6 +154,9 @@ class ControllerNode(Node):
 
     def SensorCallbackPose(self, receivedMsg):
 
+        # store the received odometry message
+        self.OdometryMsg = receivedMsg
+
         # record time of the received message
         self.msgOdometryTime = time.time()
 
@@ -234,7 +237,7 @@ class ControllerNode(Node):
         indices_not_inf = np.where(~np.isinf(LidarRanges))[0]
         # print(indices_not_inf)
 
-        # is there is an obstacle in the lidar range, set this to true
+        # if there is an obstacle in the lidar range, set this to true
         obstacleYES = ~np.all(np.isinf(indices_not_inf))
 
         if obstacleYES:
@@ -299,7 +302,6 @@ class ControllerNode(Node):
                 yo_min.append(y + min_distances[i] * np.sin(min_distances_angles[i] + theta))
 
             # compute the gradient value for every obstacle
-            # compute the gradient value for every obstacle
             g_values = []
             gradUr = []
 
@@ -347,7 +349,7 @@ class ControllerNode(Node):
             # control
 
             # if the orientation error is too large, first adjust the angle
-            if (eorient > np.abs(self.eps_orient)):
+            if (np.abs(eorient) > self.eps_orient):
                 # adjust the orientation
                 thetavel = ktheta * eorient
                 # no linear velocity, just pure rotation
@@ -363,7 +365,7 @@ class ControllerNode(Node):
         #     xvel = 0.0099
 
         if (np.abs(xvel) > 2.6):
-            xvel = 2.5
+            xvel = 1.0
 
         # print(thetaD)
         # print(eorient)
@@ -382,7 +384,6 @@ class ControllerNode(Node):
         self.controlVel.linear.z = 0.0
         self.controlVel.angular.x = 0.0
         self.controlVel.angular.y = 0.0
-        # self.controlVel.angular.z = 0.0
         self.controlVel.angular.z = thetavel
 
         print("Sending the control command")
@@ -402,20 +403,20 @@ def main(args=None):
     rclpy.init(args=args)
 
     # set the coordinates of the desired point
-    xd_u = 10
-    yd_u = -10
+    xd_u = 10.0
+    yd_u = -10.0
 
     # select the control parameters
-    ka_u = 0.3
-    kr_u = 10
-    ktheta_u = 4
-    gstar_u = 4.0
+    ka_u = 2.0
+    kr_u = 6.0
+    ktheta_u = 1.5
+    gstar_u = 0.5
 
     # in radians
-    eps_orient_u = np.pi / 10
+    eps_orient_u = np.pi / 12
 
     # in meters
-    eps_control_u = 0.2
+    eps_control_u = 0.10
 
     # create the node
     TestNode = ControllerNode(
