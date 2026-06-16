@@ -25,3 +25,8 @@ ros2 run gazebo_ros spawn_entity.py -entity robotino -file /tmp/rto-3.urdf
 
 Launch gazebo
 ros2 launch rto_simulation gazebo_model.launch.py
+
+Generate MAP from slam_toolbox
+ros2 run nav2_map_server map_saver_cli -f ~/robotino3/maps/robotino_map
+
+

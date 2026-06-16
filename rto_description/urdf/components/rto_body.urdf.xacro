@@ -68,6 +68,7 @@
                 <robot_base_frame>base_link</robot_base_frame>
                 <odom_topic>/odom</odom_topic>
                 <dimensions>2</dimensions>
+                <tf_topic>/tf</tf_topic>
             </plugin>
         </gazebo>
     </xacro:macro>

@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import IncludeLaunchDescription, TimerAction, AppendEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, PathJoinSubstitution
 
@@ -10,11 +10,24 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     pkg_name = "rto_simulation"
+    pkg_share = FindPackageShare(pkg_name)
 
     world_file = PathJoinSubstitution([
-        FindPackageShare(pkg_name),
+        pkg_share,
         "worlds",
         "robotino_empty.sdf"
+    ])
+
+    bridge_config = PathJoinSubstitution([
+        pkg_share,
+        "config",
+        "gz_bridge.yaml"
+    ])
+
+    robot_state_publisher_config = PathJoinSubstitution([
+        pkg_share,
+        "config",
+        "robot_state_publisher.yaml"
     ])
 
     robot_xacro = PathJoinSubstitution([
@@ -36,6 +49,24 @@ def generate_launch_description():
         )
     }
 
+    # Helps Gazebo find meshes/models inside your installed package
+    set_gz_resource_path = AppendEnvironmentVariable(
+        name="GZ_SIM_RESOURCE_PATH",
+        value=PathJoinSubstitution([
+            pkg_share,
+            "worlds"
+        ])
+    )
+
+    # Useful if your system is still using Ignition Gazebo / Fortress
+    set_ign_resource_path = AppendEnvironmentVariable(
+        name="IGN_GAZEBO_RESOURCE_PATH",
+        value=PathJoinSubstitution([
+            pkg_share,
+            "worlds"
+        ])
+    )
+
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -52,9 +83,10 @@ def generate_launch_description():
     robot_state_publisher = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
+        name="robot_state_publisher",
         parameters=[
             robot_description,
-            {"use_sim_time": True}
+            robot_state_publisher_config
         ],
         output="screen"
     )
@@ -75,16 +107,36 @@ def generate_launch_description():
     bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
-        arguments=[
-            "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-            "/lidar_scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-            "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
-            "/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry",
+        parameters=[
+            {
+                "config_file": bridge_config
+            }
         ],
         output="screen"
     )
 
+    slam_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource([
+        PathJoinSubstitution([
+            FindPackageShare('slam_toolbox'),
+            'launch',
+            'online_async_launch.py'
+        ])
+    ]),
+    launch_arguments={
+        'slam_params_file': PathJoinSubstitution([
+            FindPackageShare('rto_simulation'),
+            'config',
+            'mapper_params_online_async.yaml'
+        ]),
+        'use_sim_time': 'true'
+    }.items()
+    )
+
     return LaunchDescription([
+        set_gz_resource_path,
+        set_ign_resource_path,
+
         gazebo,
         robot_state_publisher,
 
@@ -93,5 +145,9 @@ def generate_launch_description():
             actions=[spawn_robot]
         ),
 
-        bridge
+        bridge,
+        TimerAction(
+            period=5.0,
+            actions=[slam_launch]
+        )
     ])

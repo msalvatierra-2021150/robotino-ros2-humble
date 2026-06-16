@@ -47,5 +47,32 @@
       </link>
     </model>
 
+
+    <!-- Static STL map. Put ROS2MAP.STL inside a Gazebo model folder:
+         ROS2MAP/meshes/ROS2MAP.STL
+         If your STL was exported in millimeters, change scale from 1 1 1 to 0.001 0.001 0.001. -->
+    <model name="ros2map">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>models/meshes/ROS2MAP.stl</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>models/meshes/ROS2MAP.stl</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
   </world>
 </sdf>
