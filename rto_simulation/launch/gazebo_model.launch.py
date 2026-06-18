@@ -15,7 +15,7 @@ def generate_launch_description():
     world_file = PathJoinSubstitution([
         pkg_share,
         "worlds",
-        "robotino_empty.sdf"
+        "robotino_slam_practice_arena.sdf"
     ])
 
     bridge_config = PathJoinSubstitution([

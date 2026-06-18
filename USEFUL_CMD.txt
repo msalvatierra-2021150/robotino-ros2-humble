@@ -29,4 +29,5 @@ ros2 launch rto_simulation gazebo_model.launch.py
 Generate MAP from slam_toolbox
 ros2 run nav2_map_server map_saver_cli -f ~/robotino3/maps/robotino_map
 
-
+Run nav2
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true

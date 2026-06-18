@@ -1,3 +1,6 @@
 [submodule "rplidar/sllidar_ros2"]
 	path = rplidar/sllidar_ros2
 	url = https://github.com/Slamtec/sllidar_ros2.git
+[submodule "robotino_controller/algotrithms/frontier_exploration"]
+	path = robotino_controller/algotrithms/frontier_exploration
+	url = https://github.com/adrian-soch/frontier_exploration
