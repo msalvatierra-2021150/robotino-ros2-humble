@@ -29,5 +29,16 @@ ros2 launch rto_simulation gazebo_model.launch.py
 Generate MAP from slam_toolbox
 ros2 run nav2_map_server map_saver_cli -f ~/robotino3/maps/robotino_map
 
-Run nav2
-ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true
+Run nav2 with config yaml
+ros2 launch nav2_bringup navigation_launch.py \
+  use_sim_time:=true \
+  params_file:=/home/mike/robotino3/robotino3ros2/rto_simulation/config/nav2_params_robotino.yaml
+
+Run Frontier navigation
+ros2 launch frontier_exploration classical_exploration.launch.py
+
+Specify the frontier to explore to nav2
+ros2 service call /frontier_pose frontier_interfaces/srv/FrontierGoal "{goal_rank: 0}"
+
+Connect to via SSH to thw Robotino
+ssh robotino@192.168.0.20
