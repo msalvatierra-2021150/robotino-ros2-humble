@@ -16,7 +16,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 
 # The Lidar sensor information
-# The messages are received throught the topic /lidar_scan
+# The messages are received throught the topic /scan
 
 from sensor_msgs.msg import LaserScan
 
@@ -35,7 +35,7 @@ topic1 = '/cmd_vel'
 topic2 = '/odom'
 
 # This topic is used to receive LiDAR scans
-topic3 = '/lidar_scan'
+topic3 = '/scan'
 
 class ControllerNode(Node):
 

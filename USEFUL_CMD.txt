@@ -42,3 +42,11 @@ ros2 service call /frontier_pose frontier_interfaces/srv/FrontierGoal "{goal_ran
 
 Connect to via SSH to thw Robotino
 ssh robotino@192.168.0.20
+
+Connect to the Robot and start mapping
+ros2 launch rto_bringup real_exploration.launch.py start_frontier:=false autostart:=false robot_ip:=192.168.0.20
+
+
+Correct time in the Pi
+./sync_pi_time_and_lidar.sh
+

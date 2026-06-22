@@ -4,3 +4,6 @@
 [submodule "robotino_controller/algotrithms/frontier_exploration"]
 	path = robotino_controller/algotrithms/frontier_exploration
 	url = https://github.com/adrian-soch/frontier_exploration
+[submodule "frontier_exploration"]
+	path = frontier_exploration
+	url = https://github.com/adrian-soch/frontier_exploration.git
