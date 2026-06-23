@@ -1,6 +1,13 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+    TimerAction,
+)
 from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 
@@ -13,7 +20,6 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     autostart = LaunchConfiguration("autostart")
     start_frontier = LaunchConfiguration("start_frontier")
-    send_frontier_goal = LaunchConfiguration("send_frontier_goal")
     robot_ip = LaunchConfiguration("robot_ip")
 
     robot_xacro = PathJoinSubstitution([
@@ -51,7 +57,6 @@ def generate_launch_description():
         parameters=[robot_description],
     )
 
-    # Publishes /odom and odom -> base_link
     rto_odom = Node(
         package="rto_node",
         executable="rto_odometry_node",
@@ -60,7 +65,6 @@ def generate_launch_description():
         parameters=[{"hostname": robot_ip}],
     )
 
-    # Receives /cmd_vel and sends movement commands to Robotino
     rto_drive = Node(
         package="rto_node",
         executable="rto_node",
@@ -109,26 +113,36 @@ def generate_launch_description():
         condition=IfCondition(start_frontier),
     )
 
-    first_frontier_goal = ExecuteProcess(
+    # This waits until /map publishes at least one message.
+    # Only runs if start_frontier:=true.
+    wait_for_map = ExecuteProcess(
         cmd=[
-            "ros2",
-            "service",
-            "call",
-            "/frontier_pose",
-            "frontier_interfaces/srv/FrontierGoal",
-            "{goal_rank: 0}",
+            "bash",
+            "-c",
+            (
+                "echo '[launch] Waiting for first /map message before starting frontier...'; "
+                "ros2 topic echo /map --once > /tmp/first_map_received.txt; "
+                "echo '[launch] /map received. Starting frontier exploration...'"
+            ),
         ],
         output="screen",
-        condition=IfCondition(send_frontier_goal),
+        condition=IfCondition(start_frontier),
+    )
+
+    # When wait_for_map exits successfully, start frontier.
+    start_frontier_after_map = RegisterEventHandler(
+        OnProcessExit(
+            target_action=wait_for_map,
+            on_exit=[
+                TimerAction(period=5.0, actions=[frontier_exploration])
+            ],
+        )
     )
 
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("autostart", default_value="true"),
         DeclareLaunchArgument("start_frontier", default_value="false"),
-        DeclareLaunchArgument("send_frontier_goal", default_value="false"),
-
-        # CHANGE THIS DEFAULT TO THE IP THAT WORKED MANUALLY
         DeclareLaunchArgument("robot_ip", default_value="192.168.0.20"),
 
         robot_state_publisher,
@@ -141,7 +155,9 @@ def generate_launch_description():
         # Give SLAM time to create /map before Nav2 starts
         TimerAction(period=30.0, actions=[nav2]),
 
-        # Keep frontier off by default while debugging
-        TimerAction(period=45.0, actions=[frontier_exploration]),
-        TimerAction(period=55.0, actions=[first_frontier_goal]),
+        # Start waiting for /map after SLAM has had time to start.
+        # Once /map is received, frontier starts automatically.
+        TimerAction(period=50.0, actions=[wait_for_map]),
+
+        start_frontier_after_map,
     ])
