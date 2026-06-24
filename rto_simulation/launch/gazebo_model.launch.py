@@ -30,6 +30,12 @@ def generate_launch_description():
         "robot_state_publisher.yaml"
     ])
 
+    nav2_params_file = PathJoinSubstitution([
+        pkg_share,
+        "config",
+        "nav2_params_robotino.yaml"
+    ])
+
     robot_xacro = PathJoinSubstitution([
         FindPackageShare("rto_description"),
         "urdf",
@@ -49,7 +55,6 @@ def generate_launch_description():
         )
     }
 
-    # Helps Gazebo find meshes/models inside your installed package
     set_gz_resource_path = AppendEnvironmentVariable(
         name="GZ_SIM_RESOURCE_PATH",
         value=PathJoinSubstitution([
@@ -58,7 +63,6 @@ def generate_launch_description():
         ])
     )
 
-    # Useful if your system is still using Ignition Gazebo / Fortress
     set_ign_resource_path = AppendEnvironmentVariable(
         name="IGN_GAZEBO_RESOURCE_PATH",
         value=PathJoinSubstitution([
@@ -116,21 +120,45 @@ def generate_launch_description():
     )
 
     slam_launch = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource([
-        PathJoinSubstitution([
-            FindPackageShare('slam_toolbox'),
-            'launch',
-            'online_async_launch.py'
-        ])
-    ]),
-    launch_arguments={
-        'slam_params_file': PathJoinSubstitution([
-            FindPackageShare('rto_simulation'),
-            'config',
-            'mapper_params_online_async.yaml'
-        ]),
-        'use_sim_time': 'true'
-    }.items()
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare("slam_toolbox"),
+                "launch",
+                "online_async_launch.py"
+            ])
+        ),
+        launch_arguments={
+            "slam_params_file": PathJoinSubstitution([
+                pkg_share,
+                "config",
+                "mapper_params_online_async.yaml"
+            ]),
+            "use_sim_time": "true"
+        }.items()
+    )
+
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare("nav2_bringup"),
+                "launch",
+                "navigation_launch.py"
+            ])
+        ),
+        launch_arguments={
+            "use_sim_time": "true",
+            "params_file": nav2_params_file
+        }.items()
+    )
+
+    frontier_exploration_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare("frontier_exploration"),
+                "launch",
+                "classical_exploration.launch.py"
+            ])
+        )
     )
 
     return LaunchDescription([
@@ -146,8 +174,19 @@ def generate_launch_description():
         ),
 
         bridge,
+
         TimerAction(
             period=5.0,
             actions=[slam_launch]
+        ),
+
+        TimerAction(
+            period=8.0,
+            actions=[nav2_launch]
+        ),
+
+        TimerAction(
+            period=12.0,
+            actions=[frontier_exploration_launch]
         )
     ])
