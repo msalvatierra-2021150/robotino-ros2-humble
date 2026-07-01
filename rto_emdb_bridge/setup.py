@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'policy_executor = robotino_emdb_bridge.policy_executor:main',
+            'apriltag_to_emdb_bridge = robotino_emdb_bridge.apriltag_to_emdb_bridge:main',
         ],
     },
 )
