@@ -20,7 +20,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 
 install(
-  DIRECTORY meshes urdf gazebo
+  DIRECTORY meshes urdf 
   DESTINATION share/${PROJECT_NAME}
 )
 

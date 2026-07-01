@@ -15,7 +15,7 @@ def generate_launch_description():
     world_file = PathJoinSubstitution([
         pkg_share,
         "worlds",
-        "robotino_slam_practice_arena.sdf"
+        "arena_5_5x3.sdf"
     ])
 
     bridge_config = PathJoinSubstitution([
@@ -55,7 +55,7 @@ def generate_launch_description():
         )
     }
 
-    set_gz_resource_path = AppendEnvironmentVariable(
+    set_gz_worlds_path = AppendEnvironmentVariable(
         name="GZ_SIM_RESOURCE_PATH",
         value=PathJoinSubstitution([
             pkg_share,
@@ -63,11 +63,27 @@ def generate_launch_description():
         ])
     )
 
-    set_ign_resource_path = AppendEnvironmentVariable(
+    set_gz_models_path = AppendEnvironmentVariable(
+        name="GZ_SIM_RESOURCE_PATH",
+        value=PathJoinSubstitution([
+            pkg_share,
+            "models"
+        ])
+    )
+
+    set_ign_worlds_path = AppendEnvironmentVariable(
         name="IGN_GAZEBO_RESOURCE_PATH",
         value=PathJoinSubstitution([
             pkg_share,
             "worlds"
+        ])
+    )
+
+    set_ign_models_path = AppendEnvironmentVariable(
+        name="IGN_GAZEBO_RESOURCE_PATH",
+        value=PathJoinSubstitution([
+            pkg_share,
+            "models"
         ])
     )
 
@@ -119,6 +135,15 @@ def generate_launch_description():
         output="screen"
     )
 
+    camera_image_bridge = Node(
+        package="ros_gz_image",
+        executable="image_bridge",
+        arguments=[
+            "/camera/image_raw"
+        ],
+        output="screen"
+    )
+
     slam_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -162,8 +187,10 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        set_gz_resource_path,
-        set_ign_resource_path,
+        set_gz_worlds_path,
+        set_gz_models_path,
+        set_ign_worlds_path,
+        set_ign_models_path,
 
         gazebo,
         robot_state_publisher,
@@ -174,6 +201,7 @@ def generate_launch_description():
         ),
 
         bridge,
+        camera_image_bridge,
 
         TimerAction(
             period=5.0,
