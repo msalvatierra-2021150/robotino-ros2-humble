@@ -6,6 +6,7 @@ from launch.substitutions import Command, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -144,6 +145,23 @@ def generate_launch_description():
         output="screen"
     )
 
+    apriltag_detector = Node(
+        package="apriltag_ros",
+        executable="apriltag_node",
+        name="apriltag_node",
+        parameters=[
+            {
+                "family": "36h11",
+                "size": 0.10,
+            }
+        ],
+        remappings=[
+            ("image_rect", "/camera/image_raw"),
+            ("camera_info", "/camera/camera_info"),
+        ],
+        output="screen"
+    )
+
     slam_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -194,6 +212,7 @@ def generate_launch_description():
 
         gazebo,
         robot_state_publisher,
+        apriltag_detector,
 
         TimerAction(
             period=3.0,
@@ -213,8 +232,8 @@ def generate_launch_description():
             actions=[nav2_launch]
         ),
 
-        TimerAction(
-            period=12.0,
-            actions=[frontier_exploration_launch]
-        )
+        # TimerAction(
+        #     period=12.0,
+        #     actions=[frontier_exploration_launch]
+        # )
     ])

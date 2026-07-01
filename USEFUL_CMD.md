@@ -308,3 +308,7 @@ ros2 run tf2_ros tf2_monitor map odom
 ```
 
 Use this to detect stale `map -> odom` transforms.
+
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+ros2 topic echo /detections
