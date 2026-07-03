@@ -1,7 +1,10 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction, AppendEnvironmentVariable
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+from launch.actions import IncludeLaunchDescription, TimerAction, AppendEnvironmentVariable, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, PathJoinSubstitution
+from launch.substitutions import Command, PathJoinSubstitution, LaunchConfiguration
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -12,6 +15,14 @@ from launch_ros.actions import Node
 def generate_launch_description():
     pkg_name = "rto_simulation"
     pkg_share = FindPackageShare(pkg_name)
+
+    apriltag_config = LaunchConfiguration("apriltag_config")
+
+    declare_apriltag_config = DeclareLaunchArgument(
+        "apriltag_config",
+        default_value="/home/mike/robotino3/robotino3ros2/config/apriltag_36h11.yaml",
+        description="Path to the AprilTag ROS configuration YAML file"
+    )
 
     world_file = PathJoinSubstitution([
         pkg_share,
@@ -145,21 +156,34 @@ def generate_launch_description():
         output="screen"
     )
 
-    apriltag_detector = Node(
-        package="apriltag_ros",
-        executable="apriltag_node",
-        name="apriltag_node",
+    apriltag_node = Node(
+        package='apriltag_ros',
+        executable='apriltag_node',
+        name='apriltag_node',
+        output='screen',
         parameters=[
-            {
-                "family": "36h11",
-                "size": 0.10,
-            }
+            {'use_sim_time': True},
+            apriltag_config
         ],
         remappings=[
-            ("image_rect", "/camera/image_raw"),
-            ("camera_info", "/camera/camera_info"),
+            ('image_rect', '/camera/image_rect'),
+            ('camera_info', '/camera/camera_info'),
+        ]
+    )
+
+    image_rectify_node = Node(
+        package='image_proc',
+        executable='rectify_node',
+        name='image_rectify_node',
+        output='screen',
+        parameters=[
+            {'use_sim_time': True}
         ],
-        output="screen"
+        remappings=[
+            ('image', '/camera/image_raw'),
+            ('camera_info', '/camera/camera_info'),
+            ('image_rect', '/camera/image_rect'),
+        ]
     )
 
     slam_launch = IncludeLaunchDescription(
@@ -205,6 +229,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        declare_apriltag_config,
         set_gz_worlds_path,
         set_gz_models_path,
         set_ign_worlds_path,
@@ -212,7 +237,7 @@ def generate_launch_description():
 
         gazebo,
         robot_state_publisher,
-        apriltag_detector,
+        apriltag_node,
 
         TimerAction(
             period=3.0,
@@ -221,6 +246,7 @@ def generate_launch_description():
 
         bridge,
         camera_image_bridge,
+        image_rectify_node,
 
         TimerAction(
             period=5.0,

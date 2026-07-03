@@ -1,11 +1,13 @@
-apriltag:
+/**:
   ros__parameters:
-    image_transport: raw
-    family: 36h11
+    family: "36h11"
+
+    # Tag edge size in meters.
+    # 10 cm x 10 cm tag = 0.10 m edge length.
     size: 0.10
-    profile: false
 
     max_hamming: 0
+    profile: false
 
     detector:
       threads: 2
@@ -14,8 +16,6 @@ apriltag:
       refine: true
       sharpening: 0.25
       debug: false
-
-    pose_estimation_method: "pnp"
 
     tag:
       ids: [0, 1, 2, 3, 4, 5]

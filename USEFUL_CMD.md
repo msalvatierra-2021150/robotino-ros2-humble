@@ -315,4 +315,4 @@ ros2 topic echo /detections
 
 ros2 run rto_emdb_bridge apriltag_to_emdb_bridge
 
- ros2 topic echo /detections
+ros2 topic echo /detections
