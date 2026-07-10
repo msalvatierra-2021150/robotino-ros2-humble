@@ -1,14 +1,44 @@
 <?xml version="1.0"?>
 
 <sdf version="1.7">
+
   <model name="apriltags_10cm">
+
     <static>true</static>
 
-    <!-- Tag 0: south wall -->
+    <!--
+      AprilTags for the 8.0 m x 6.0 m loop-and-branch maze.
+
+      Arena limits:
+        x = -4.0 to +4.0 m
+        y = -3.0 to +3.0 m
+
+      Tag height:
+        z = 0.20 m
+
+      Tag orientation convention:
+        yaw = 0          faces north  (+Y)
+        yaw = pi         faces south  (-Y)
+        yaw = -pi/2      faces east   (+X)
+        yaw = +pi/2      faces west   (-X)
+
+      Tags 1 and 3 are attached to internal dead-end walls.
+      The remaining tags are attached to outer walls.
+    -->
+
+
+    <!-- ========================================================== -->
+    <!-- TAG 0                                                      -->
+    <!-- Lower-left branch                                          -->
+    <!-- Mounted on west outer wall and facing east                 -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00000">
-      <pose>-2.0 -1.49 0.25 0 0 0</pose>
+
+      <pose>-3.99 -2.50 0.20 0 0 -1.570796</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -16,28 +46,55 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00000.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00000.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
-    <!-- Tag 1: south wall -->
+
+    <!-- ========================================================== -->
+    <!-- TAG 1                                                      -->
+    <!-- Lower central dead end                                     -->
+    <!--                                                            -->
+    <!-- Internal wall:                                             -->
+    <!--   x = 0.70                                                 -->
+    <!--   y = -3.00 to -2.10                                      -->
+    <!--                                                            -->
+    <!-- Tag mounted on west face and facing west                   -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00001">
-      <pose>0.0 -1.49 0.25 0 0 0</pose>
+
+      <!--
+        Wall center is x = 0.70.
+        Tag is offset slightly toward the west side of the wall.
+      -->
+
+      <pose>0.674 -2.55 0.20 0 0 1.570796</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -45,28 +102,45 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00001.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00001.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
-    <!-- Tag 2: south wall -->
+
+    <!-- ========================================================== -->
+    <!-- TAG 2                                                      -->
+    <!-- Lower-right branch                                         -->
+    <!-- Mounted on east outer wall and facing west                 -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00002">
-      <pose>2.0 -1.49 0.25 0 0 0</pose>
+
+      <pose>3.99 -1.25 0.20 0 0 1.570796</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -74,28 +148,55 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00002.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00002.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
-    <!-- Tag 3: north wall -->
+
+    <!-- ========================================================== -->
+    <!-- TAG 3                                                      -->
+    <!-- Upper central dead end                                     -->
+    <!--                                                            -->
+    <!-- Internal wall:                                             -->
+    <!--   x = -0.65                                                -->
+    <!--   y = 2.10 to 3.00                                        -->
+    <!--                                                            -->
+    <!-- Tag mounted on east face and facing east                   -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00003">
-      <pose>-2.0 1.49 0.25 0 0 3.14159</pose>
+
+      <!--
+        Wall center is x = -0.65.
+        Tag is offset slightly toward the east side of the wall.
+      -->
+
+      <pose>-0.624 2.55 0.20 0 0 -1.570796</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -103,28 +204,45 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00003.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00003.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
-    <!-- Tag 4: north wall -->
+
+    <!-- ========================================================== -->
+    <!-- TAG 4                                                      -->
+    <!-- Upper-left branch                                          -->
+    <!-- Mounted on west outer wall and facing east                 -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00004">
-      <pose>0.0 1.49 0.25 0 0 3.14159</pose>
+
+      <pose>-3.99 1.35 0.20 0 0 -1.570796</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -132,28 +250,45 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00004.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00004.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
-    <!-- Tag 5: north wall -->
+
+    <!-- ========================================================== -->
+    <!-- TAG 5                                                      -->
+    <!-- Upper-right branch                                         -->
+    <!-- Mounted on north outer wall and facing south               -->
+    <!-- ========================================================== -->
+
     <link name="tag36_11_00005">
-      <pose>2.0 1.49 0.25 0 0 3.14159</pose>
+
+      <pose>3.15 2.99 0.20 0 0 3.141593</pose>
 
       <visual name="visual">
+
         <geometry>
           <box>
             <size>0.10 0.002 0.10</size>
@@ -161,22 +296,32 @@
         </geometry>
 
         <material>
+
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
 
           <pbr>
             <metal>
-              <albedo_map>model://apriltags_10cm/materials/textures/tag36_11_00005.png</albedo_map>
+
+              <albedo_map>
+                model://apriltags_10cm/materials/textures/tag36_11_00005.png
+              </albedo_map>
+
               <roughness>1.0</roughness>
               <metalness>0.0</metalness>
+
             </metal>
           </pbr>
+
         </material>
 
         <cast_shadows>false</cast_shadows>
+
       </visual>
+
     </link>
 
   </model>
+
 </sdf>

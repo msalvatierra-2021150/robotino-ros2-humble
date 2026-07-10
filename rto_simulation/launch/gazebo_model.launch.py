@@ -218,14 +218,23 @@ def generate_launch_description():
         }.items()
     )
 
-    frontier_exploration_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare("frontier_exploration"),
-                "launch",
-                "classical_exploration.launch.py"
-            ])
-        )
+    frontier_detector = Node(
+        package='frontier_exploration',
+        executable='classical_frontier_detector',
+        name='classical_frontier_detector',
+        output='screen',
+        parameters=[{
+            'region_size_thresh': 10,
+            'robot_width': 0.350,
+            'occupancy_map_msg': 'map',
+        }]
+    )
+
+    frontier_explorer = Node(
+        package="frontier_exploration",
+        executable="frontier_exploration_node.py",
+        name="frontier_exploration_node",
+        output="screen",
     )
 
     return LaunchDescription([
@@ -258,8 +267,13 @@ def generate_launch_description():
             actions=[nav2_launch]
         ),
 
-        # TimerAction(
-        #     period=12.0,
-        #     actions=[frontier_exploration_launch]
-        # )
+        TimerAction(
+            period=12.0,
+            actions=[frontier_explorer]
+        ),
+
+        TimerAction(
+            period=12.0,
+            actions=[frontier_detector]
+        )
     ])
