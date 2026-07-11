@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 
 """
-Frontier exploration controlled by the eMDB selected-policy topic.
+Frontier exploration controlled by an eMDB Boolean topic.
 
-Exploration runs only while /robotino/emdb/selected_policy contains:
-    policy_id: 0
-    policy_name: continuing_exploration
+Exploration runs only while:
 
-When another policy is selected, the current Nav2 goal is canceled and
-frontier exploration pauses until continuing_exploration is selected again.
+    /robotino/emdb/exploration_enable
+    std_msgs/msg/Bool
+    data: true
+
+When false is received, the current Nav2 goal is canceled and frontier
+exploration pauses until true is received again.
 """
 
 import math
 import threading
 import time
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
@@ -22,6 +24,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.time import Time
+from std_msgs.msg import Bool
 from tf2_ros import Buffer, TransformException, TransformListener
 
 from frontier_interfaces.srv import FrontierGoal
@@ -29,15 +32,12 @@ from frontier_exploration.robot_navigator import (
     BasicNavigator,
     NavigationResult,
 )
-from robotino_emdb_interfaces.msg import RobotinoSelectedPolicy
 
 
 class FrontierExplorer(Node):
     """Request reachable frontier goals and send them to Nav2."""
 
-    POLICY_TOPIC = "/robotino/emdb/selected_policy"
-    EXPLORATION_POLICY_ID = 0
-    EXPLORATION_POLICY_NAME = "continue_exploring"
+    EXPLORATION_ENABLE_TOPIC = "/robotino/emdb/frontier_exploration_enable"
 
     FRONTIER_SERVICE = "frontier_pose"
     MAP_FRAME = "map"
@@ -75,11 +75,11 @@ class FrontierExplorer(Node):
         # Nav2 helper.
         self.navigator = BasicNavigator()
 
-        # eMDB selected-policy subscriber.
-        self.policy_subscriber = self.create_subscription(
-            RobotinoSelectedPolicy,
-            self.POLICY_TOPIC,
-            self.selected_policy_callback,
+        # Boolean subscriber controlled by eMDB.
+        self.exploration_enable_subscriber = self.create_subscription(
+            Bool,
+            self.EXPLORATION_ENABLE_TOPIC,
+            self.exploration_enable_callback,
             10,
         )
 
@@ -93,44 +93,33 @@ class FrontierExplorer(Node):
 
         self.get_logger().info(
             "Frontier explorer initialized. Waiting for "
-            "policy_id=0 and policy_name='continue_exploring'."
+            f"'{self.EXPLORATION_ENABLE_TOPIC}' to become true."
         )
 
     # ------------------------------------------------------------------
-    # Policy control
+    # Exploration control
     # ------------------------------------------------------------------
 
-    def selected_policy_callback(
-        self,
-        msg: RobotinoSelectedPolicy,
-    ) -> None:
-        """Enable or pause exploration according to the selected policy."""
+    def exploration_enable_callback(self, msg: Bool) -> None:
+        """Enable or pause exploration according to the Boolean message."""
 
-        policy_id = int(msg.policy_id)
-        policy_name = str(msg.policy_name).strip().lower()
-
-        exploration_selected = (
-            policy_id == self.EXPLORATION_POLICY_ID
-            and policy_name == self.EXPLORATION_POLICY_NAME
-        )
-
-        if exploration_selected:
+        if msg.data:
             if not self.exploration_enabled.is_set():
                 self.next_frontier_rank = 0
                 self.exploration_enabled.set()
 
                 self.get_logger().info(
-                    "continuing_exploration selected. "
+                    "Exploration enable received: true. "
                     "Frontier exploration enabled."
                 )
+
             return
 
         if self.exploration_enabled.is_set():
             self.exploration_enabled.clear()
 
             self.get_logger().info(
-                f"Policy changed to id={policy_id}, "
-                f"name='{msg.policy_name}'. "
+                "Exploration enable received: false. "
                 "Frontier exploration paused."
             )
 
@@ -151,7 +140,7 @@ class FrontierExplorer(Node):
         """Continuously request and navigate to frontiers while enabled."""
 
         while rclpy.ok() and not self.shutdown_requested.is_set():
-            # Wait until eMDB selects continuing_exploration.
+            # Wait until eMDB enables frontier exploration.
             if not self.exploration_enabled.wait(timeout=0.25):
                 continue
 
@@ -179,9 +168,9 @@ class FrontierExplorer(Node):
 
             result, cancellation_reason = self.navigate_to_goal(goal_pose)
 
-            if cancellation_reason == "policy":
+            if cancellation_reason == "disabled":
                 self.get_logger().info(
-                    "Navigation canceled because eMDB changed policy."
+                    "Navigation canceled because exploration was disabled."
                 )
                 continue
 
@@ -204,7 +193,7 @@ class FrontierExplorer(Node):
                 )
 
     def wait_for_frontier_service(self) -> bool:
-        """Wait for the frontier service without blocking policy changes."""
+        """Wait for the frontier service without blocking enable changes."""
 
         while self.should_explore():
             if self.frontier_client.wait_for_service(timeout_sec=1.0):
@@ -323,14 +312,14 @@ class FrontierExplorer(Node):
         self,
         goal_pose: PoseStamped,
     ) -> Tuple[NavigationResult, Optional[str]]:
-        """Navigate to a frontier and stop if the policy changes."""
+        """Navigate to a frontier and stop if exploration is disabled."""
 
         self.navigator.goToPose(goal_pose)
 
         while rclpy.ok() and not self.navigator.isNavComplete():
             if not self.should_explore():
                 self.cancel_navigation_and_wait()
-                return NavigationResult.CANCELED, "policy"
+                return NavigationResult.CANCELED, "disabled"
 
             feedback = self.navigator.getFeedback()
 
@@ -405,7 +394,7 @@ class FrontierExplorer(Node):
     # ------------------------------------------------------------------
 
     def interruptible_sleep(self, duration_sec: float) -> bool:
-        """Sleep while still allowing a policy change to interrupt."""
+        """Sleep while allowing exploration disable messages to interrupt."""
 
         deadline = time.monotonic() + duration_sec
 
