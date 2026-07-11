@@ -7,7 +7,7 @@
     <static>true</static>
 
     <!--
-      AprilTags for the 8.0 m x 6.0 m loop-and-branch maze.
+      AprilTags for the 8.0 m x 6.0 m moderate_four_L_maze.
 
       Arena limits:
         x = -4.0 to +4.0 m
@@ -22,13 +22,16 @@
         yaw = -pi/2      faces east   (+X)
         yaw = +pi/2      faces west   (-X)
 
-      Tags 1 and 3 are attached to internal dead-end walls.
-      The remaining tags are attached to outer walls.
+      Tags 1 and 3 are attached to the inner faces of the maze's internal
+      L-shaped walls (the "inside" tags). The remaining tags (0, 2, 4, 5)
+      are attached to the outer boundary walls (the "outside" tags),
+      spread across the four side corridors. Every tag's yaw is chosen
+      so it faces into the arena interior.
     -->
 
 
     <!-- ========================================================== -->
-    <!-- TAG 0                                                      -->
+    <!-- TAG 0 - outside                                            -->
     <!-- Lower-left branch                                          -->
     <!-- Mounted on west outer wall and facing east                 -->
     <!-- ========================================================== -->
@@ -74,24 +77,24 @@
 
 
     <!-- ========================================================== -->
-    <!-- TAG 1                                                      -->
-    <!-- Lower central dead end                                     -->
+    <!-- TAG 1 - inside                                             -->
+    <!-- Lower-right L, inner leg                                   -->
     <!--                                                            -->
-    <!-- Internal wall:                                             -->
-    <!--   x = 0.70                                                 -->
-    <!--   y = -3.00 to -2.10                                      -->
+    <!-- Internal wall: lower_right_vertical_link                   -->
+    <!--   x = 1.55 (wall center), y = -2.10 to -0.50                -->
     <!--                                                            -->
-    <!-- Tag mounted on west face and facing west                   -->
+    <!-- Tag mounted on the wall's inner (west) face and facing west,-->
+    <!-- i.e. into the arena interior                                -->
     <!-- ========================================================== -->
 
     <link name="tag36_11_00001">
 
       <!--
-        Wall center is x = 0.70.
-        Tag is offset slightly toward the west side of the wall.
+        Wall center is x = 1.55, inner face at x = 1.525.
+        Tag sits just proud of that face, on the interior side.
       -->
 
-      <pose>0.674 -2.55 0.20 0 0 1.570796</pose>
+      <pose>1.520 -1.30 0.20 0 0 1.570796</pose>
 
       <visual name="visual">
 
@@ -130,7 +133,7 @@
 
 
     <!-- ========================================================== -->
-    <!-- TAG 2                                                      -->
+    <!-- TAG 2 - outside                                            -->
     <!-- Lower-right branch                                         -->
     <!-- Mounted on east outer wall and facing west                 -->
     <!-- ========================================================== -->
@@ -176,24 +179,24 @@
 
 
     <!-- ========================================================== -->
-    <!-- TAG 3                                                      -->
-    <!-- Upper central dead end                                     -->
+    <!-- TAG 3 - inside                                             -->
+    <!-- Upper-left L, inner leg                                    -->
     <!--                                                            -->
-    <!-- Internal wall:                                             -->
-    <!--   x = -0.65                                                -->
-    <!--   y = 2.10 to 3.00                                        -->
+    <!-- Internal wall: upper_left_vertical_link                    -->
+    <!--   x = -1.55 (wall center), y = 0.50 to 2.10                 -->
     <!--                                                            -->
-    <!-- Tag mounted on east face and facing east                   -->
+    <!-- Tag mounted on the wall's inner (east) face and facing east,-->
+    <!-- i.e. into the arena interior                                -->
     <!-- ========================================================== -->
 
     <link name="tag36_11_00003">
 
       <!--
-        Wall center is x = -0.65.
-        Tag is offset slightly toward the east side of the wall.
+        Wall center is x = -1.55, inner face at x = -1.525.
+        Tag sits just proud of that face, on the interior side.
       -->
 
-      <pose>-0.624 2.55 0.20 0 0 -1.570796</pose>
+      <pose>-1.520 1.30 0.20 0 0 -1.570796</pose>
 
       <visual name="visual">
 
@@ -232,7 +235,7 @@
 
 
     <!-- ========================================================== -->
-    <!-- TAG 4                                                      -->
+    <!-- TAG 4 - outside                                            -->
     <!-- Upper-left branch                                          -->
     <!-- Mounted on west outer wall and facing east                 -->
     <!-- ========================================================== -->
@@ -278,7 +281,7 @@
 
 
     <!-- ========================================================== -->
-    <!-- TAG 5                                                      -->
+    <!-- TAG 5 - outside                                            -->
     <!-- Upper-right branch                                         -->
     <!-- Mounted on north outer wall and facing south               -->
     <!-- ========================================================== -->

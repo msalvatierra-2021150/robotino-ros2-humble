@@ -40,7 +40,12 @@
     <!--
       Moderate maze version:
       - Four original L-shaped structures retained.
-      - Four AprilTags moved to the outer side corridors on perimeter walls.
+      - Six AprilTags (from the included apriltags_10cm model) mounted
+        flush to walls, all facing into the arena interior:
+          * 2 "inside" tags (IDs 1, 3) on the inner faces of the
+            upper-left and lower-right L-shaped structures.
+          * 4 "outside" tags (IDs 0, 2, 4, 5) on the outer perimeter
+            walls, spread across the four side corridors.
       - Two boundary gates and two staggered center baffles add mild maze behavior.
       - No narrow dead ends were introduced.
     -->
@@ -132,38 +137,6 @@
             <diffuse>0.90 0.90 0.90 1</diffuse>
           </material>
         </visual>
-        <visual name="apriltag_1_visual">
-          <pose>-0.0265 1.65 0.0 0 -1.57079632679 0</pose>
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.002</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://Apriltag36_11_00001/materials/scripts</uri>
-              <uri>model://Apriltag36_11_00001/materials/textures</uri>
-              <name>Apriltag36_11_00001</name>
-            </script>
-          </material>
-          <cast_shadows>false</cast_shadows>
-        </visual>
-        <visual name="apriltag_3_visual">
-          <pose>-0.0265 -1.65 0.0 0 -1.57079632679 0</pose>
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.002</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://Apriltag36_11_00003/materials/scripts</uri>
-              <uri>model://Apriltag36_11_00003/materials/textures</uri>
-              <name>Apriltag36_11_00003</name>
-            </script>
-          </material>
-          <cast_shadows>false</cast_shadows>
-        </visual>
       </link>
       <link name="west_wall_link">
         <pose>-4.025 0 0.30 0 0 0</pose>
@@ -184,38 +157,6 @@
             <ambient>0.90 0.90 0.90 1</ambient>
             <diffuse>0.90 0.90 0.90 1</diffuse>
           </material>
-        </visual>
-        <visual name="apriltag_0_visual">
-          <pose>0.0265 1.65 0.0 0 1.57079632679 0</pose>
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.002</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://Apriltag36_11_00000/materials/scripts</uri>
-              <uri>model://Apriltag36_11_00000/materials/textures</uri>
-              <name>Apriltag36_11_00000</name>
-            </script>
-          </material>
-          <cast_shadows>false</cast_shadows>
-        </visual>
-        <visual name="apriltag_2_visual">
-          <pose>0.0265 -1.65 0.0 0 1.57079632679 0</pose>
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.002</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://Apriltag36_11_00002/materials/scripts</uri>
-              <uri>model://Apriltag36_11_00002/materials/textures</uri>
-              <name>Apriltag36_11_00002</name>
-            </script>
-          </material>
-          <cast_shadows>false</cast_shadows>
         </visual>
       </link>
       <!-- Upper-left L: vertical leg + top arm pointing right -->
@@ -239,7 +180,7 @@
             <diffuse>0.78 0.78 0.83 1</diffuse>
           </material>
         </visual>
-        <!-- 10 cm AprilTag ID 0, attached flush to the wall's inner face -->
+        <!-- 10 cm AprilTag ID 3 (apriltags_10cm model) mounted flush on this wall's inner (+X) face, facing into the arena -->
       </link>
       <link name="upper_left_horizontal_link">
         <pose>-1.05 2.10 0.30 0 0 0</pose>
@@ -283,7 +224,6 @@
             <diffuse>0.78 0.78 0.83 1</diffuse>
           </material>
         </visual>
-        <!-- 10 cm AprilTag ID 1, attached flush to the wall's inner face -->
       </link>
       <link name="upper_right_horizontal_link">
         <pose>1.05 2.10 0.30 0 0 0</pose>
@@ -327,7 +267,6 @@
             <diffuse>0.78 0.78 0.83 1</diffuse>
           </material>
         </visual>
-        <!-- 10 cm AprilTag ID 2, attached flush to the wall's inner face -->
       </link>
       <link name="lower_left_horizontal_link">
         <pose>-1.05 -2.10 0.30 0 0 0</pose>
@@ -371,7 +310,7 @@
             <diffuse>0.78 0.78 0.83 1</diffuse>
           </material>
         </visual>
-        <!-- 10 cm AprilTag ID 3, attached flush to the wall's inner face -->
+        <!-- 10 cm AprilTag ID 1 (apriltags_10cm model) mounted flush on this wall's inner (-X) face, facing into the arena -->
       </link>
       <link name="lower_right_horizontal_link">
         <pose>1.05 -2.10 0.30 0 0 0</pose>
@@ -479,6 +418,21 @@
         </visual>
       </link>
     </model>
-    <!-- AprilTags 0-3 are embedded in the west/east perimeter walls, facing inward toward the outer corridors. -->
+
+    <!--
+      AprilTags: single include of the apriltags_10cm model (see its own
+      model.sdf). That model now carries its own correct per-tag poses:
+      tags 1 and 3 mounted on the maze's internal L-walls (inside),
+      tags 0, 2, 4, 5 mounted on the outer boundary walls (outside),
+      every one of them facing into the arena interior. This world just
+      places that model at the origin, since all tag poses inside it are
+      already given in world coordinates.
+    -->
+    <include>
+      <name>apriltags_10cm_arena</name>
+      <uri>model://apriltags_10cm</uri>
+      <pose>0 0 0 0 0 0</pose>
+      <static>true</static>
+    </include>
   </world>
 </sdf>

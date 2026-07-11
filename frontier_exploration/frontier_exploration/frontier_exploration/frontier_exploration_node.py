@@ -1,156 +1,303 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
-'''
-This node is for autonomous exploration. It requests frontier regions from a service and
-sends the goal points to the nav2 stack until the the entire environment has been explored.
+"""
+Frontier exploration controlled by the eMDB selected-policy topic.
 
-Reference code: https://automaticaddison.com/how-to-send-goals-to-the-ros-2-navigation-stack-nav2/
-'''
+Exploration runs only while /robotino/emdb/selected_policy contains:
+    policy_id: 0
+    policy_name: continuing_exploration
+
+When another policy is selected, the current Nav2 goal is canceled and
+frontier exploration pauses until continuing_exploration is selected again.
+"""
+
+import math
+import threading
+import time
+from typing import Optional, Tuple, Union
+
 import rclpy
-from rclpy.node import Node
-from rclpy.duration import Duration
 from geometry_msgs.msg import PoseStamped
-
-from tf2_ros import TransformException
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+from rclpy.duration import Duration
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.node import Node
+from rclpy.time import Time
+from tf2_ros import Buffer, TransformException, TransformListener
 
 from frontier_interfaces.srv import FrontierGoal
-from frontier_exploration.robot_navigator import BasicNavigator, NavigationResult
- 
-import time
-import math
+from frontier_exploration.robot_navigator import (
+    BasicNavigator,
+    NavigationResult,
+)
+from robotino_emdb_interfaces.msg import RobotinoSelectedPolicy
+
 
 class FrontierExplorer(Node):
+    """Request reachable frontier goals and send them to Nav2."""
 
-    def __init__(self):
-        super().__init__('frontier_explorer')
+    POLICY_TOPIC = "/robotino/emdb/selected_policy"
+    EXPLORATION_POLICY_ID = 0
+    EXPLORATION_POLICY_NAME = "continue_exploring"
 
-        self.goal_pose = PoseStamped()
+    FRONTIER_SERVICE = "frontier_pose"
+    MAP_FRAME = "map"
+    ROBOT_FRAME = "base_link"
+
+    MAX_FRONTIER_RANK = 3
+    NAVIGATION_TIMEOUT_SEC = 75.0
+    FRONTIER_REQUEST_TIMEOUT_SEC = 5.0
+    RETRY_DELAY_SEC = 2.0
+    SCAN_UPDATE_DELAY_SEC = 1.5
+    CANCEL_WAIT_SEC = 5.0
+
+    def __init__(self) -> None:
+        super().__init__("frontier_explorer")
+
+        # Worker-state flags.
+        self.exploration_enabled = threading.Event()
+        self.shutdown_requested = threading.Event()
+
         self.next_frontier_rank = 0
 
-        self.next_frontier_rank = 0
-        self.frontier_retry_count = 0
-        self.MAX_RETRIES_PER_FRONTIER = 5
-        
-        self.cli = self.create_client(FrontierGoal, 'frontier_pose')
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
+        # Frontier service client.
+        self.frontier_client = self.create_client(
+            FrontierGoal,
+            self.FRONTIER_SERVICE,
+        )
 
-        self.req = FrontierGoal.Request()
+        # TF listener used to obtain the robot pose in the map frame.
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(
+            self.tf_buffer,
+            self,
+        )
+
+        # Nav2 helper.
         self.navigator = BasicNavigator()
 
-        self.EXPLORATION_TIME_OUT_SEC = Duration(seconds=1200)
-        self.NAV_TO_GOAL_TIMEOUT_SEC = 75
-        self.DIST_THRESH_FOR_HEADING_CALC = 0.25
+        # eMDB selected-policy subscriber.
+        self.policy_subscriber = self.create_subscription(
+            RobotinoSelectedPolicy,
+            self.POLICY_TOPIC,
+            self.selected_policy_callback,
+            10,
+        )
 
-        self.goal_pose = PoseStamped()
+        # Run blocking frontier and navigation work outside ROS callbacks.
+        self.worker_thread = threading.Thread(
+            target=self.exploration_worker,
+            name="frontier_exploration_worker",
+            daemon=True,
+        )
+        self.worker_thread.start()
 
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.get_logger().info(
+            "Frontier explorer initialized. Waiting for "
+            "policy_id=0 and policy_name='continue_exploring'."
+        )
 
-        self.start_time = self.get_clock().now()
-        self.get_logger().info('Starting frontier exploration...')
-        self.explore()
+    # ------------------------------------------------------------------
+    # Policy control
+    # ------------------------------------------------------------------
 
-    def explore(self):
-        while rclpy.ok():
-            # Allow SLAM and Nav2 costmaps to incorporate
-            # the scans collected at the previous frontier.
-            time.sleep(1.5)
+    def selected_policy_callback(
+        self,
+        msg: RobotinoSelectedPolicy,
+    ) -> None:
+        """Enable or pause exploration according to the selected policy."""
 
-            self.goal_pose = self.get_reachable_goal()
+        policy_id = int(msg.policy_id)
+        policy_name = str(msg.policy_name).strip().lower()
 
-            if self.goal_pose is None:
-                self.get_logger().warn(
-                    "No reachable frontier currently; retrying."
-                )
-                time.sleep(2.0)
-                continue
+        exploration_selected = (
+            policy_id == self.EXPLORATION_POLICY_ID
+            and policy_name == self.EXPLORATION_POLICY_NAME
+        )
 
-            if self.goal_pose == "Done":
+        if exploration_selected:
+            if not self.exploration_enabled.is_set():
+                self.next_frontier_rank = 0
+                self.exploration_enabled.set()
+
                 self.get_logger().info(
-                    "No frontier currently detected; retrying."
+                    "continuing_exploration selected. "
+                    "Frontier exploration enabled."
                 )
-                time.sleep(2.0)
+            return
+
+        if self.exploration_enabled.is_set():
+            self.exploration_enabled.clear()
+
+            self.get_logger().info(
+                f"Policy changed to id={policy_id}, "
+                f"name='{msg.policy_name}'. "
+                "Frontier exploration paused."
+            )
+
+    def should_explore(self) -> bool:
+        """Return True while exploration is enabled and ROS is running."""
+
+        return (
+            rclpy.ok()
+            and not self.shutdown_requested.is_set()
+            and self.exploration_enabled.is_set()
+        )
+
+    # ------------------------------------------------------------------
+    # Exploration worker
+    # ------------------------------------------------------------------
+
+    def exploration_worker(self) -> None:
+        """Continuously request and navigate to frontiers while enabled."""
+
+        while rclpy.ok() and not self.shutdown_requested.is_set():
+            # Wait until eMDB selects continuing_exploration.
+            if not self.exploration_enabled.wait(timeout=0.25):
                 continue
 
-            self.navigator.goToPose(self.goal_pose)
+            if not self.should_explore():
+                continue
 
-            canceled_by_explorer = False
+            if not self.wait_for_frontier_service():
+                continue
 
-            while not self.navigator.isNavComplete():
-                feedback = self.navigator.getFeedback()
+            # Give SLAM and costmaps time to process recent scans.
+            if not self.interruptible_sleep(self.SCAN_UPDATE_DELAY_SEC):
+                continue
 
-                if (
-                    feedback is not None
-                    and Duration.from_msg(feedback.navigation_time)
-                    > Duration(seconds=self.NAV_TO_GOAL_TIMEOUT_SEC)
-                ):
-                    canceled_by_explorer = True
+            goal_pose = self.get_reachable_frontier()
 
-                    self.get_logger().warn(
-                        "Navigation timeout; canceling frontier goal."
-                    )
-                    self.navigator.cancelNav()
+            if not self.should_explore():
+                continue
 
-                    # Cancellation is asynchronous. Wait until Nav2 confirms completion.
-                    while not self.navigator.isNavComplete():
-                        time.sleep(0.05)
+            if goal_pose is None:
+                self.get_logger().info(
+                    "No reachable frontier found. Retrying."
+                )
+                self.interruptible_sleep(self.RETRY_DELAY_SEC)
+                continue
 
-                    break
+            result, cancellation_reason = self.navigate_to_goal(goal_pose)
 
-            if canceled_by_explorer:
-                result = NavigationResult.CANCELED
-            else:
-                result = self.navigator.getResult()
+            if cancellation_reason == "policy":
+                self.get_logger().info(
+                    "Navigation canceled because eMDB changed policy."
+                )
+                continue
 
-            self.log_nav_status(result)
+            if cancellation_reason == "shutdown":
+                break
+
+            self.log_navigation_result(result)
 
             if result == NavigationResult.SUCCEEDED:
                 self.next_frontier_rank = 0
             else:
                 self.next_frontier_rank += 1
+
+                if self.next_frontier_rank > self.MAX_FRONTIER_RANK:
+                    self.next_frontier_rank = 0
+
                 self.get_logger().warn(
-                    f"Frontier navigation failed; trying rank "
-                    f"{self.next_frontier_rank}."
+                    "Frontier navigation did not succeed. "
+                    f"Next requested rank: {self.next_frontier_rank}."
                 )
 
-    def get_reachable_goal(self):
+    def wait_for_frontier_service(self) -> bool:
+        """Wait for the frontier service without blocking policy changes."""
+
+        while self.should_explore():
+            if self.frontier_client.wait_for_service(timeout_sec=1.0):
+                return True
+
+            self.get_logger().info(
+                f"Waiting for frontier service "
+                f"'{self.FRONTIER_SERVICE}'..."
+            )
+
+        return False
+
+    # ------------------------------------------------------------------
+    # Frontier selection
+    # ------------------------------------------------------------------
+
+    def get_reachable_frontier(self) -> Optional[PoseStamped]:
+        """Return the first reachable frontier from the configured ranks."""
+
         rank = self.next_frontier_rank
-        reachable = False
-        while not reachable:
-            goal = self.send_request(rank)
+
+        while self.should_explore() and rank <= self.MAX_FRONTIER_RANK:
+            goal = self.request_frontier(rank)
+
+            if not self.should_explore():
+                return None
+
             if goal is None:
                 self.next_frontier_rank = 0
-                return "Done"
+                return None
 
-            self.goal_pose = goal
-            self.goal_pose.header.frame_id = 'map'
-            self.goal_pose.header.stamp = self.navigator.get_clock().now().to_msg()
+            goal.header.frame_id = self.MAP_FRAME
+            goal.header.stamp = self.get_clock().now().to_msg()
 
-            # sanity check a valid path exists
-            initial_pose = self.get_current_pose()
-            if initial_pose is None:
-                # Return goal is current pose is unavailble
-                return goal
-            path = self.navigator.getPath(initial_pose, self.goal_pose)
+            current_pose = self.get_current_pose()
 
-            # If top 4 frontiers are not reachable, abort
-            if path is not None:
+            if current_pose is None:
+                self.get_logger().warn(
+                    "Robot pose is unavailable. Using the frontier "
+                    "without checking its path first."
+                )
                 self.next_frontier_rank = rank
                 return goal
-            elif rank > 3:
-                return None
+
+            path = self.navigator.getPath(current_pose, goal)
+
+            if path is not None and len(path.poses) > 0:
+                self.next_frontier_rank = rank
+                return goal
+
+            self.get_logger().warn(
+                f"Frontier rank {rank} is unreachable."
+            )
             rank += 1
 
-    def send_request(self, rank):
-        self.req.goal_rank = rank
-        self.future = self.cli.call_async(self.req)
+        self.next_frontier_rank = 0
+        return None
 
-        rclpy.spin_until_future_complete(self, self.future)
+    def request_frontier(self, rank: int) -> Optional[PoseStamped]:
+        """Request one ranked frontier pose from the frontier service."""
 
-        response = self.future.result()
+        request = FrontierGoal.Request()
+        request.goal_rank = rank
+
+        future = self.frontier_client.call_async(request)
+        deadline = (
+            time.monotonic() + self.FRONTIER_REQUEST_TIMEOUT_SEC
+        )
+
+        # The MultiThreadedExecutor completes the service future while
+        # this worker thread waits.
+        while rclpy.ok() and not future.done():
+            if not self.should_explore():
+                return None
+
+            if time.monotonic() >= deadline:
+                self.get_logger().warn(
+                    f"Frontier request for rank {rank} timed out."
+                )
+                return None
+
+            time.sleep(0.05)
+
+        if not future.done():
+            return None
+
+        try:
+            response = future.result()
+        except Exception as error:
+            self.get_logger().error(
+                f"Frontier service request failed: {error}"
+            )
+            return None
 
         if response is None:
             return None
@@ -161,56 +308,164 @@ class FrontierExplorer(Node):
             not math.isfinite(goal.pose.position.x)
             or not math.isfinite(goal.pose.position.y)
         ):
+            self.get_logger().warn(
+                f"Frontier rank {rank} returned invalid coordinates."
+            )
             return None
 
         return goal
 
-    def get_current_pose(self) -> PoseStamped:
+    # ------------------------------------------------------------------
+    # Navigation
+    # ------------------------------------------------------------------
+
+    def navigate_to_goal(
+        self,
+        goal_pose: PoseStamped,
+    ) -> Tuple[NavigationResult, Optional[str]]:
+        """Navigate to a frontier and stop if the policy changes."""
+
+        self.navigator.goToPose(goal_pose)
+
+        while rclpy.ok() and not self.navigator.isNavComplete():
+            if not self.should_explore():
+                self.cancel_navigation_and_wait()
+                return NavigationResult.CANCELED, "policy"
+
+            feedback = self.navigator.getFeedback()
+
+            if feedback is not None:
+                navigation_time = Duration.from_msg(
+                    feedback.navigation_time
+                )
+
+                if navigation_time > Duration(
+                    seconds=self.NAVIGATION_TIMEOUT_SEC
+                ):
+                    self.get_logger().warn(
+                        "Navigation timeout. Canceling frontier goal."
+                    )
+                    self.cancel_navigation_and_wait()
+                    return NavigationResult.CANCELED, "timeout"
+
+            time.sleep(0.05)
+
+        if not rclpy.ok() or self.shutdown_requested.is_set():
+            return NavigationResult.CANCELED, "shutdown"
+
+        return self.navigator.getResult(), None
+
+    def cancel_navigation_and_wait(self) -> None:
+        """Cancel the current Nav2 goal and briefly wait for completion."""
+
+        self.navigator.cancelNav()
+        deadline = time.monotonic() + self.CANCEL_WAIT_SEC
+
+        while (
+            rclpy.ok()
+            and not self.navigator.isNavComplete()
+            and time.monotonic() < deadline
+        ):
+            time.sleep(0.05)
+
+    # ------------------------------------------------------------------
+    # Robot pose
+    # ------------------------------------------------------------------
+
+    def get_current_pose(self) -> Optional[PoseStamped]:
+        """Return the robot pose in the map frame."""
+
         try:
-            t = self.tf_buffer.lookup_transform(
-                "odom",
-                "base_link",
-                rclpy.time.Time(), Duration(seconds=0.5))
-        except TransformException as ex:
-            self.get_logger().info(
-                f'Could not transform odom to base_link: {ex}')
-            self.get_logger().warn('Current pose unavailable.')
+            transform = self.tf_buffer.lookup_transform(
+                self.MAP_FRAME,
+                self.ROBOT_FRAME,
+                Time(),
+                timeout=Duration(seconds=0.5),
+            )
+        except TransformException as error:
+            self.get_logger().warn(
+                f"Could not transform {self.MAP_FRAME} to "
+                f"{self.ROBOT_FRAME}: {error}"
+            )
             return None
-            
-        p = PoseStamped()
-        p.pose.position.x = t.transform.translation.x
-        p.pose.position.y = t.transform.translation.y
-        p.header.stamp = self.navigator.get_clock().now().to_msg()
-        p.header.frame_id = 'odom'
-        return p
-    
-    def set_goal_heading(self):
-        curr_pose = self.get_current_pose()
 
-        if curr_pose is None:
-            return
-        
-        # Set goal orientation to current heading
-        self.goal_pose.pose.orientation.x = curr_pose.pose.orientation.x
-        self.goal_pose.pose.orientation.y = curr_pose.pose.orientation.y
-        self.goal_pose.pose.orientation.z = curr_pose.pose.orientation.z
-        self.goal_pose.pose.orientation.w = curr_pose.pose.orientation.w
-    
-    def log_nav_status(self, result):
+        pose = PoseStamped()
+        pose.header.frame_id = self.MAP_FRAME
+        pose.header.stamp = self.get_clock().now().to_msg()
+
+        pose.pose.position.x = transform.transform.translation.x
+        pose.pose.position.y = transform.transform.translation.y
+        pose.pose.position.z = transform.transform.translation.z
+        pose.pose.orientation = transform.transform.rotation
+
+        return pose
+
+    # ------------------------------------------------------------------
+    # Utilities and shutdown
+    # ------------------------------------------------------------------
+
+    def interruptible_sleep(self, duration_sec: float) -> bool:
+        """Sleep while still allowing a policy change to interrupt."""
+
+        deadline = time.monotonic() + duration_sec
+
+        while time.monotonic() < deadline:
+            if not self.should_explore():
+                return False
+
+            remaining = deadline - time.monotonic()
+            time.sleep(min(0.1, remaining))
+
+        return True
+
+    def log_navigation_result(self, result: NavigationResult) -> None:
+        """Log the result returned by the Nav2 helper."""
+
         if result == NavigationResult.SUCCEEDED:
-            self.get_logger().info('Goal succeeded!')
+            self.get_logger().info("Frontier goal succeeded.")
         elif result == NavigationResult.CANCELED:
-            self.get_logger().info('Goal was canceled!')
+            self.get_logger().info("Frontier goal was canceled.")
         elif result == NavigationResult.FAILED:
-            self.get_logger().info('Goal failed!')
+            self.get_logger().warn("Frontier goal failed.")
         else:
-            self.get_logger().error('Goal has an invalid return status!')
+            self.get_logger().error(
+                f"Unknown navigation result: {result}"
+            )
 
-def main(args=None):
+    def stop_worker(self) -> None:
+        """Stop and join the exploration worker thread."""
+
+        self.shutdown_requested.set()
+
+        # Wake the worker if it is waiting for exploration to be enabled.
+        self.exploration_enabled.set()
+
+        if self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=3.0)
+
+
+def main(args=None) -> None:
     rclpy.init(args=args)
-    frontier_explorer = FrontierExplorer()   
-    frontier_explorer.destroy_node()
-    rclpy.shutdown()
-    
-if __name__ == '__main__':
+
+    frontier_explorer = FrontierExplorer()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(frontier_explorer)
+
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        frontier_explorer.stop_worker()
+        executor.remove_node(frontier_explorer)
+        executor.shutdown()
+
+        frontier_explorer.navigator.destroy_node()
+        frontier_explorer.destroy_node()
+
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == "__main__":
     main()
