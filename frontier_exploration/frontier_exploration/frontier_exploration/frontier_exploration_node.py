@@ -25,6 +25,14 @@ class FrontierExplorer(Node):
 
     def __init__(self):
         super().__init__('frontier_explorer')
+
+        self.goal_pose = PoseStamped()
+        self.next_frontier_rank = 0
+
+        self.next_frontier_rank = 0
+        self.frontier_retry_count = 0
+        self.MAX_RETRIES_PER_FRONTIER = 5
+        
         self.cli = self.create_client(FrontierGoal, 'frontier_pose')
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')
@@ -69,6 +77,8 @@ class FrontierExplorer(Node):
 
             self.navigator.goToPose(self.goal_pose)
 
+            canceled_by_explorer = False
+
             while not self.navigator.isNavComplete():
                 feedback = self.navigator.getFeedback()
 
@@ -77,21 +87,42 @@ class FrontierExplorer(Node):
                     and Duration.from_msg(feedback.navigation_time)
                     > Duration(seconds=self.NAV_TO_GOAL_TIMEOUT_SEC)
                 ):
+                    canceled_by_explorer = True
+
                     self.get_logger().warn(
                         "Navigation timeout; canceling frontier goal."
                     )
                     self.navigator.cancelNav()
+
+                    # Cancellation is asynchronous. Wait until Nav2 confirms completion.
+                    while not self.navigator.isNavComplete():
+                        time.sleep(0.05)
+
                     break
 
-            result = self.navigator.getResult()
+            if canceled_by_explorer:
+                result = NavigationResult.CANCELED
+            else:
+                result = self.navigator.getResult()
+
             self.log_nav_status(result)
 
+            if result == NavigationResult.SUCCEEDED:
+                self.next_frontier_rank = 0
+            else:
+                self.next_frontier_rank += 1
+                self.get_logger().warn(
+                    f"Frontier navigation failed; trying rank "
+                    f"{self.next_frontier_rank}."
+                )
+
     def get_reachable_goal(self):
-        rank = 0
+        rank = self.next_frontier_rank
         reachable = False
         while not reachable:
             goal = self.send_request(rank)
             if goal is None:
+                self.next_frontier_rank = 0
                 return "Done"
 
             self.goal_pose = goal
@@ -107,6 +138,7 @@ class FrontierExplorer(Node):
 
             # If top 4 frontiers are not reachable, abort
             if path is not None:
+                self.next_frontier_rank = rank
                 return goal
             elif rank > 3:
                 return None
