@@ -44,7 +44,7 @@
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 
@@ -100,7 +100,7 @@
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 
@@ -140,13 +140,13 @@
 
     <link name="tag36_11_00002">
 
-      <pose>3.99 -1.25 0.20 0 0 1.570796</pose>
+      <pose>3.99 -2.0 0.20 0 0 1.570796</pose>
 
       <visual name="visual">
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 
@@ -202,7 +202,7 @@
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 
@@ -242,13 +242,13 @@
 
     <link name="tag36_11_00004">
 
-      <pose>-3.99 1.35 0.20 0 0 -1.570796</pose>
+      <pose>-3.99 2.0 0.20 0 0 -1.570796</pose>
 
       <visual name="visual">
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 
@@ -294,7 +294,7 @@
 
         <geometry>
           <box>
-            <size>0.10 0.002 0.10</size>
+            <size>0.25 0.002 0.25</size>
           </box>
         </geometry>
 

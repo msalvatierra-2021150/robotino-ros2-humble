@@ -2,9 +2,8 @@
   ros__parameters:
     family: "36h11"
 
-    # Tag edge size in meters.
-    # 10 cm x 10 cm tag = 0.10 m edge length.
-    size: 0.10
+    # Actual detectable AprilTag edge, excluding the outer white margin.
+    size: 0.20
 
     max_hamming: 0
     profile: false
@@ -20,4 +19,4 @@
     tag:
       ids: [0, 1, 2, 3, 4, 5]
       frames: ["tag_0", "tag_1", "tag_2", "tag_3", "tag_4", "tag_5"]
-      sizes: [0.10, 0.10, 0.10, 0.10, 0.10, 0.10]
+      sizes: [0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
