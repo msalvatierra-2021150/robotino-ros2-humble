@@ -376,7 +376,7 @@
         </visual>
       </link>
       <link name="center_upper_baffle_link">
-        <pose>-0.65 0.25 0.3 0 0 0</pose>
+        <pose>-0.55 0.25 0.3 0 0 0</pose>
         <collision name="center_upper_baffle_collision">
           <geometry>
             <box>
@@ -397,7 +397,7 @@
         </visual>
       </link>
       <link name="center_lower_baffle_link">
-        <pose>0.65 -0.25 0.3 0 0 0</pose>
+        <pose>0.55 -0.25 0.3 0 0 0</pose>
         <collision name="center_lower_baffle_collision">
           <geometry>
             <box>
