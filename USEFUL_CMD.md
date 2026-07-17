@@ -309,10 +309,78 @@ ros2 run tf2_ros tf2_monitor map odom
 
 Use this to detect stale `map -> odom` transforms.
 
+## Teleoperation, AprilTags, and Map Saving
+
+### Drive the Robotino
+
+```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
 
+Use the keyboard to manually move the robot. The terminal must stay selected.
+
+### Check AprilTag detections
+
+```bash
 ros2 topic echo /detections
+```
 
+This shows raw AprilTag detections, including the tag ID and estimated pose. No output appears when no tag is visible.
+
+### Start the eMDB bridge
+
+```bash
 ros2 run rto_emdb_bridge apriltag_to_emdb_bridge
+```
 
-ros2 topic echo /detections
+This converts `/detections` messages into the format used by the eMDB system.
+
+Check the bridge output topic with:
+
+```bash
+ros2 node info /apriltag_to_emdb_bridge
+```
+
+Then echo the published eMDB topic, for example:
+
+```bash
+ros2 topic echo /robotino/emdb/tag_detection
+```
+
+### Save the map
+
+Create a folder:
+
+```bash
+mkdir -p /home/mike/robotino_maps
+```
+
+Save the current map:
+
+```bash
+ros2 run nav2_map_server map_saver_cli \
+  -f /home/mike/robotino_maps/robotino_lab
+```
+
+This normally creates:
+
+```text
+robotino_lab.yaml
+robotino_lab.pgm
+```
+
+Confirm the files:
+
+```bash
+ls -lh /home/mike/robotino_maps/
+```
+
+### Launch with the saved map
+
+```bash
+ros2 launch rto_simulation gazebo_model.launch.py \
+  use_saved_map:=true \
+  map_yaml_file:=/home/mike/robotino_maps/robotino_lab.yaml
+```
+
+This loads the saved map instead of starting a new mapping session.
