@@ -1,12 +1,6 @@
 /**
  * @file classical_frontier_detection.cpp
- * @author
  * @brief Implementation of frontier-based exploration
- * @version 0.1
- * @date 2023-03-11
- *
- * @copyright Copyright (c) 2023
- *
  */
 
 #include "frontier_exploration/classical_frontier_detector.hpp"
@@ -14,20 +8,39 @@
 #include <limits>
 #include <std_msgs/msg/bool.hpp>
 
-
 namespace
 {
 
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
     exploration_complete_publisher_;
 
-}  // namespace
+void set_invalid_frontier_response(
+    const rclcpp::Clock::SharedPtr & clock,
+    const std::shared_ptr<
+        frontier_interfaces::srv::FrontierGoal::Response
+    > & response
+)
+{
+    geometry_msgs::msg::PoseStamped invalid_goal;
+    invalid_goal.header.stamp = clock->now();
+    invalid_goal.header.frame_id = "";
+    invalid_goal.pose.position.x =
+        std::numeric_limits<double>::quiet_NaN();
+    invalid_goal.pose.position.y =
+        std::numeric_limits<double>::quiet_NaN();
+    invalid_goal.pose.position.z = 0.0;
+    invalid_goal.pose.orientation.x = 0.0;
+    invalid_goal.pose.orientation.y = 0.0;
+    invalid_goal.pose.orientation.z = 0.0;
+    invalid_goal.pose.orientation.w = 1.0;
+    response->goal_pose = invalid_goal;
+}
 
+}  // namespace
 
 FrontierExplorer::FrontierExplorer()
 : Node("frontier_explorer")
 {
-    // Get parameters
     region_size_thresh_ = this->declare_parameter(
         "region_size_thresh",
         12
@@ -43,7 +56,6 @@ FrontierExplorer::FrontierExplorer()
         "map"
     );
 
-    // Subscribers/Publishers/Service setup
     map_subscription_ =
         this->create_subscription<nav_msgs::msg::OccupancyGrid>(
             occupancy_map_topic_,
@@ -78,14 +90,18 @@ FrontierExplorer::FrontierExplorer()
             1
         );
 
-    // Publish whether frontier exploration is complete.
+    // Retain the latest completion state for late-starting subscribers.
+    rclcpp::QoS completion_qos(rclcpp::KeepLast(1));
+    completion_qos.reliable();
+    completion_qos.transient_local();
+
     exploration_complete_publisher_ =
         this->create_publisher<std_msgs::msg::Bool>(
             "/robotino/emdb/exploration_complete",
-            1
+            completion_qos
         );
 
-    // TF listener
+
     tf_buffer_ =
         std::make_unique<tf2_ros::Buffer>(
             this->get_clock()
@@ -97,24 +113,13 @@ FrontierExplorer::FrontierExplorer()
         );
 }
 
-
 void FrontierExplorer::map_callback(
     const nav_msgs::msg::OccupancyGrid::SharedPtr recent_map
 )
 {
-    // auto width = recent_map->info.width;
-    // auto height = recent_map->info.height;
-    // RCLCPP_INFO(
-    //     this->get_logger(),
-    //     "Map received w: %d h: %d.",
-    //     width,
-    //     height
-    // );
-
     std::lock_guard<std::mutex> guard(mutex_);
     map_ = *recent_map;
 }
-
 
 void FrontierExplorer::get_frontiers(
     const std::shared_ptr<
@@ -131,7 +136,6 @@ void FrontierExplorer::get_frontiers(
         request->goal_rank
     );
 
-    // Copy the map
     std::unique_lock<std::mutex> lck(mutex_);
     nav_msgs::msg::OccupancyGrid map = map_;
     lck.unlock();
@@ -145,11 +149,10 @@ void FrontierExplorer::get_frontiers(
             this->get_logger(),
             "No valid map received yet."
         );
-
+        set_invalid_frontier_response(this->get_clock(), response);
         return;
     }
 
-    // Pre-process the grid cell map
     std::vector<cell> processed = preprocessMap(
         map.data,
         map.info.width,
@@ -157,18 +160,14 @@ void FrontierExplorer::get_frontiers(
         5
     );
 
-    // Compute frontier grid cell map
     frontierCellGrid_.clear();
-
     frontierCellGrid_ = computeFrontierCellGrid(
         processed,
         map.info.width,
         map.info.height
     );
 
-    // Compute the Frontier Regions
     frontierRegions_.clear();
-
     frontierRegions_ = computeFrontierRegions(
         frontierCellGrid_,
         map.info.width,
@@ -179,13 +178,8 @@ void FrontierExplorer::get_frontiers(
         region_size_thresh_
     );
 
-    /*
-     * Publish true when no frontier regions remain.
-     * Publish false while at least one frontier is available.
-     */
     std_msgs::msg::Bool exploration_complete_message;
     exploration_complete_message.data = frontierRegions_.empty();
-
     exploration_complete_publisher_->publish(
         exploration_complete_message
     );
@@ -199,8 +193,8 @@ void FrontierExplorer::get_frontiers(
 
     if (
         request->goal_rank < 0 ||
-        static_cast<std::size_t>(request->goal_rank)
-            >= frontierRegions_.size()
+        static_cast<std::size_t>(request->goal_rank) >=
+            frontierRegions_.size()
     ) {
         RCLCPP_WARN(
             this->get_logger(),
@@ -208,47 +202,15 @@ void FrontierExplorer::get_frontiers(
             request->goal_rank,
             frontierRegions_.size()
         );
-
-        geometry_msgs::msg::PoseStamped invalid_goal;
-
-        invalid_goal.header.stamp =
-            this->get_clock()->now();
-
-        invalid_goal.header.frame_id = "";
-
-        invalid_goal.pose.position.x =
-            std::numeric_limits<double>::quiet_NaN();
-
-        invalid_goal.pose.position.y =
-            std::numeric_limits<double>::quiet_NaN();
-
-        invalid_goal.pose.orientation.w = 1.0;
-
-        response->goal_pose = invalid_goal;
-
+        set_invalid_frontier_response(this->get_clock(), response);
         return;
     }
 
     nav_msgs::msg::OccupancyGrid f_map = map;
-
-    // std::transform(
-    //     frontierCellGrid_.begin(),
-    //     frontierCellGrid_.end(),
-    //     frontierCellGrid_.begin(),
-    //     std::bind(
-    //         std::multiplies<cell>(),
-    //         std::placeholders::_1,
-    //         255
-    //     )
-    // );
-
     f_map.data = processed;
-
     frontier_map_publisher_->publish(f_map);
-
     publishFrontiers();
 
-    // Get robot position
     geometry_msgs::msg::TransformStamped stransform;
 
     try {
@@ -264,35 +226,10 @@ void FrontierExplorer::get_frontiers(
             "%s",
             ex.what()
         );
-    }
-
-    // Find best goal based on position and size
-    // Make sure we actually found frontier regions before selecting one
-    if (frontierRegions_.empty()) {
-        RCLCPP_WARN(
-            this->get_logger(),
-            "No frontier regions found. Cannot select goal."
-        );
-
+        set_invalid_frontier_response(this->get_clock(), response);
         return;
     }
 
-    if (
-        request->goal_rank < 0 ||
-        request->goal_rank >=
-            static_cast<int>(frontierRegions_.size())
-    ) {
-        RCLCPP_WARN(
-            this->get_logger(),
-            "Invalid goal_rank %d. Only %zu frontier regions available.",
-            request->goal_rank,
-            frontierRegions_.size()
-        );
-
-        return;
-    }
-
-    // Find best goal based on position and size
     frontierRegion goal = selectFrontier(
         frontierRegions_,
         request->goal_rank,
@@ -300,37 +237,17 @@ void FrontierExplorer::get_frontiers(
         stransform.transform.translation.y
     );
 
-    // Create and initialize message
     geometry_msgs::msg::PoseStamped goal_pose;
+    goal_pose.header.stamp = this->get_clock()->now();
+    goal_pose.header.frame_id = map_frame_;
+    goal_pose.pose.position.x = goal.x;
+    goal_pose.pose.position.y = goal.y;
+    goal_pose.pose.position.z = 0.0;
+    goal_pose.pose.orientation.x = 0.0;
+    goal_pose.pose.orientation.y = 0.0;
+    goal_pose.pose.orientation.z = 0.0;
+    goal_pose.pose.orientation.w = 1.0;
 
-    goal_pose.header.stamp =
-        this->get_clock()->now();
-
-    goal_pose.header.frame_id =
-        map_frame_;
-
-    goal_pose.pose.position.x =
-        goal.x;
-
-    goal_pose.pose.position.y =
-        goal.y;
-
-    goal_pose.pose.position.z =
-        0.0;
-
-    goal_pose.pose.orientation.x =
-        0.0;
-
-    goal_pose.pose.orientation.y =
-        0.0;
-
-    goal_pose.pose.orientation.z =
-        0.0;
-
-    goal_pose.pose.orientation.w =
-        1.0;
-
-    // Set the response
     response->goal_pose = goal_pose;
 
     RCLCPP_INFO(
@@ -341,58 +258,37 @@ void FrontierExplorer::get_frontiers(
     );
 }
 
-
 void FrontierExplorer::publishFrontiers()
 {
     visualization_msgs::msg::Marker::SharedPtr sphere_list(
         new visualization_msgs::msg::Marker
     );
 
-    sphere_list->header.frame_id =
-        map_frame_;
-
-    sphere_list->header.stamp =
-        this->get_clock()->now();
-
-    sphere_list->type =
-        visualization_msgs::msg::Marker::SPHERE_LIST;
-
-    sphere_list->action =
-        visualization_msgs::msg::Marker::ADD;
-
+    sphere_list->header.frame_id = map_frame_;
+    sphere_list->header.stamp = this->get_clock()->now();
+    sphere_list->type = visualization_msgs::msg::Marker::SPHERE_LIST;
+    sphere_list->action = visualization_msgs::msg::Marker::ADD;
     sphere_list->scale.x = 0.1;
     sphere_list->scale.y = 0.1;
     sphere_list->scale.z = 0.1;
-
-    // Set green and alpha (opacity)
     sphere_list->color.g = 1.0;
     sphere_list->color.a = 1.0;
 
-    for (auto reg : frontierRegions_) {
+    for (const auto & reg : frontierRegions_) {
         geometry_msgs::msg::Point p;
-
         p.x = reg.x;
         p.y = reg.y;
         p.z = 0.05;
-
         sphere_list->points.push_back(p);
     }
 
     marker_publisher_->publish(*sphere_list);
 }
 
-
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-
-    // Start processing data from the node as well as callbacks and timers
-    rclcpp::spin(
-        std::make_shared<FrontierExplorer>()
-    );
-
-    // Shutdown the node when finished
+    rclcpp::spin(std::make_shared<FrontierExplorer>());
     rclcpp::shutdown();
-
     return 0;
 }
