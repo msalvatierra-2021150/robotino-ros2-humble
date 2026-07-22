@@ -2,9 +2,11 @@ from launch import LaunchDescription
 from launch.actions import (
     AppendEnvironmentVariable,
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
     TimerAction,
 )
+
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -282,6 +284,30 @@ def generate_launch_description():
         condition=IfCondition(use_saved_map),
     )
 
+    saved_map_completion_publisher = ExecuteProcess(
+        cmd=[
+            "ros2",
+            "topic",
+            "pub",
+            "--rate",
+            "1",
+            "--qos-history",
+            "keep_last",
+            "--qos-depth",
+            "1",
+            "--qos-reliability",
+            "reliable",
+            "--qos-durability",
+            "transient_local",
+            "/robotino/emdb/exploration_complete",
+            "std_msgs/msg/Bool",
+            "{data: true}",
+        ],
+        name="saved_map_completion_publisher",
+        output="screen",
+        condition=IfCondition(use_saved_map),
+    )
+
     # Navigation is needed in both mapping and saved-map modes.
     nav2_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -328,6 +354,10 @@ def generate_launch_description():
             TimerAction(
                 period=5.0,
                 actions=[localization_launch],
+            ),
+            TimerAction(
+                period=6.0,
+                actions=[saved_map_completion_publisher],
             ),
             TimerAction(
                 period=8.0,

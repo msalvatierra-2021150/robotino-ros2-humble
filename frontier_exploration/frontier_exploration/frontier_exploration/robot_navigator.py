@@ -40,7 +40,10 @@ class NavigationResult(Enum):
 
 class BasicNavigator(Node):
     def __init__(self):
-        super().__init__(node_name='basic_navigator')
+        super().__init__(
+            node_name='basic_navigator',
+            use_global_arguments=False,
+        )
         self.initial_pose = PoseStamped()
         self.initial_pose.header.frame_id = 'map'
         self.goal_handle = None
