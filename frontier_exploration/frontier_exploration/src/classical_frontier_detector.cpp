@@ -97,7 +97,7 @@ FrontierExplorer::FrontierExplorer()
 
     exploration_complete_publisher_ =
         this->create_publisher<std_msgs::msg::Bool>(
-            "/robotino/emdb/exploration_complete",
+            "/frontier_exploration/mapping_complete",
             completion_qos
         );
 
